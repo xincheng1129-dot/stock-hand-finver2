@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>存股手帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink-navy:#1E2A3A;
+    --ink-navy-deep:#141D29;
+    --ink-navy-soft:#2B3B4E;
+    --cream:#EFE7D3;
+    --cream-deep:#E6DCC2;
+    --cream-line: rgba(43,36,23,0.07);
+    --chop-red:#B3382C;
+    --chop-red-deep:#8C2A21;
+    --jade:#3F7150;
+    --jade-bg:#E1EAE1;
+    --rust:#9B3B2C;
+    --rust-bg:#F3E2DA;
+    --ink-text:#2B2417;
+    --ink-text-soft:#6B6150;
+    --gold:#B8892B;
+    --paper-shadow: rgba(20,29,41,0.28);
+    --font-display:'Noto Serif TC', serif;
+    --font-body:'Noto Sans TC', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: radial-gradient(circle at 20% 0%, var(--ink-navy-soft), var(--ink-navy-deep) 65%);
+    font-family: var(--font-body);
+    color: var(--ink-text);
+    min-height:100vh;
+    padding: 28px 16px 64px;
+  }
+  .book{
+    max-width: 1040px;
+    margin: 0 auto;
+    background: var(--cream);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 30px 60px var(--paper-shadow), 0 2px 0 rgba(255,255,255,0.4) inset;
+  }
+  /* ---- Cover ---- */
+  .cover{
+    background:
+      repeating-linear-gradient(115deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 26px),
+      linear-gradient(160deg, var(--ink-navy) 0%, var(--ink-navy-deep) 100%);
+    color: #EFE7D3;
+    padding: 34px 34px 0;
+  }
+  .cover-eyebrow{
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #C9BFA0;
+    margin: 0 0 8px;
+    font-weight:600;
+  }
+  .cover-title{
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(32px, 5vw, 46px);
+    margin: 0 0 6px;
+    letter-spacing: 0.04em;
+  }
+  .cover-sub{
+    margin: 0 0 26px;
+    color: #B9AF92;
+    font-size: 14px;
+  }
+  .tabs{
+    display:flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .tab-btn{
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 14px;
+    padding: 12px 18px 14px;
+    border: none;
+    border-radius: 10px 10px 0 0;
+    background: rgba(239,231,211,0.08);
+    color: #C9BFA0;
+    cursor: pointer;
+    transition: background .18s ease, color .18s ease, transform .12s ease;
+    position: relative;
+    top: 1px;
+  }
+  .tab-btn:hover{ background: rgba(239,231,211,0.16); color:#EFE7D3; }
+  .tab-btn.active{
+    background: var(--cream);
+    color: var(--ink-navy-deep);
+  }
+  .tab-flag{
+    display:inline-block;
+    width:7px;height:7px;border-radius:50%;
+    margin-right:7px;
+  }
+  .flag-1{ background: var(--chop-red); }
+  .flag-2{ background: var(--jade); }
+  .flag-3{ background: var(--gold); }
+
+  /* ---- Content ---- */
+  .content{
+    background:
+      repeating-linear-gradient(var(--cream) 0 39px, var(--cream-line) 39px 40px);
+    padding: 32px 34px 44px;
+  }
+  .panel{ display:none; }
+  .panel.active{ display:block; animation: fadeIn .25s ease; }
+  @keyframes fadeIn{ from{opacity:0; transform: translateY(4px);} to{opacity:1; transform:none;} }
+
+  h2.section-title{
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    color: var(--ink-navy-deep);
+  }
+  p.section-desc{
+    margin: 0 0 20px;
+    color: var(--ink-text-soft);
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+
+  /* stat strip */
+  .stat-strip{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
+    gap: 1px;
+    background: var(--cream-line);
+    border: 1px solid var(--cream-line);
+    border-radius: 10px;
+    overflow:hidden;
+    margin-bottom: 24px;
+  }
+  .stat-tile{
+    background: #F7F2E4;
+    padding: 14px 16px;
+  }
+  .stat-label{ font-size: 11.5px; color: var(--ink-text-soft); margin-bottom:6px; letter-spacing:.04em;}
+  .stat-value{ font-family: var(--font-display); font-size: 20px; font-weight:700; font-variant-numeric: tabular-nums; }
+  .pos{ color: var(--jade); }
+  .neg{ color: var(--rust); }
+
+  /* card / form */
+  .card{
+    background: #F7F2E4;
+    border: 1px solid var(--cream-line);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  .card-title{
+    font-weight:700; font-size:14px; margin:0 0 14px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .form-grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px,1fr));
+    gap: 12px;
+  }
+  label{ font-size: 12px; color: var(--ink-text-soft); display:block; margin-bottom:4px; font-weight:600; }
+  input, select{
+    width:100%;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    padding: 8px 10px;
+    border: 1px solid #CFC5A6;
+    border-radius: 7px;
+    background: #fff;
+    color: var(--ink-text);
+  }
+  input[readonly]{ background:#EFEAD9; color: var(--ink-text-soft); }
+  input:focus-visible, select:focus-visible, button:focus-visible{
+    outline: 2px solid var(--chop-red);
+    outline-offset: 1px;
+  }
+  .field-hint{ font-size:11px; color:var(--ink-text-soft); margin-top:3px; }
+  .btn{
+    font-family: var(--font-body);
+    font-weight:700;
+    font-size: 13px;
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor:pointer;
+    transition: transform .1s ease, filter .15s ease;
+  }
+  .btn:hover{ filter: brightness(1.06); }
+  .btn:active{ transform: scale(0.97); }
+  .btn:disabled{ opacity:.55; cursor:default; }
+  .btn-primary{ background: var(--chop-red); color:#fff; }
+  .btn-ghost{ background: transparent; color: var(--ink-navy-deep); border:1px solid var(--cream-line); }
+  .btn-danger{ background: transparent; color: var(--rust); border: 1px solid var(--rust-bg); font-weight:600; }
+  .btn-sm{ padding: 5px 11px; font-size:12px; }
+  .btn-row{ margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; }
+
+  /* stock blocks */
+  .stock-block{
+    background:#F7F2E4;
+    border:1px solid var(--cream-line);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+  .block-head{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap;
+    margin-bottom: 12px;
+  }
+  .block-title-row{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .block-symbol{ font-family: var(--font-display); font-weight:900; font-size:19px; }
+  .block-name{ font-size:13.5px; color: var(--ink-text-soft); }
+  .pill{
+    font-size:11px; font-weight:700; padding: 3px 10px; border-radius: 20px;
+    letter-spacing:.03em;
+  }
+  .pill-hold{ background: var(--jade-bg); color: var(--jade); }
+  .pill-sold{ background: #E7E2D3; color: var(--ink-text-soft); }
+  .price-line{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-text-soft); }
+  .price-line input.manualPriceInput{ width:110px; display:inline-block; padding:5px 8px; font-size:12.5px; }
+  .price-value{ font-family: var(--font-display); font-weight:700; font-size:16px; color:var(--ink-text); }
+  .block-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  .holding-stats{
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(110px,1fr)); gap: 10px 16px;
+    margin-bottom: 10px;
+  }
+  .hs-label{ font-size:11px; color:var(--ink-text-soft); }
+  .hs-value{ font-weight:700; font-variant-numeric: tabular-nums; font-size:14px; }
+  .divider-line{ border:none; border-top:1px dashed var(--cream-line); margin: 12px 0; }
+  .div-list{ display:flex; flex-wrap:wrap; gap:6px; margin: 6px 0 10px; }
+  .div-chip{
+    background:#fff; border:1px solid var(--cream-line); border-radius:20px;
+    font-size:11.5px; padding: 4px 10px 4px 12px; display:flex; align-items:center; gap:6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .div-chip.auto{ border-color: var(--jade); color: var(--jade); }
+  .div-chip button{ background:none; border:none; color:var(--rust); cursor:pointer; font-size:13px; padding:0 2px; }
+  .div-chip button.edit{ color: var(--ink-navy-soft); }
+  .realized-tag{ font-size:10.5px; color:var(--ink-text-soft); display:block; margin-top:1px; }
+  .mini-form{ display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; }
+  .mini-form > div{ flex: 1 1 120px; }
+  .empty-state{
+    text-align:center; padding: 34px 16px; color: var(--ink-text-soft);
+    border: 1px dashed var(--cream-line); border-radius: 12px; font-size: 13.5px;
+  }
+  .hidden{ display:none !important; }
+  .fetch-status{ font-size:11.5px; color:var(--ink-text-soft); margin-left:4px; }
+  .fetch-status.err{ color: var(--rust); }
+  .fetch-status.ok{ color: var(--jade); }
+
+  /* transaction table */
+  .txn-table{ width:100%; border-collapse:collapse; font-size:12.8px; margin-top:6px; }
+  .txn-table th, .txn-table td{ text-align:left; padding:8px 8px; border-bottom:1px solid var(--cream-line); white-space:nowrap; }
+  .txn-table th{ color:var(--ink-text-soft); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.02em; }
+  .txn-table td.wrap{ white-space:normal; }
+  .txn-wrap{ overflow-x:auto; margin-bottom:8px; }
+
+  /* stamp */
+  .stamp-wrap{ display:flex; justify-content:center; margin: 6px 0 22px; }
+  .stamp{
+    width: 128px; height:128px; border-radius:50%;
+    border: 4px double var(--stamp-color, var(--chop-red));
+    color: var(--stamp-color, var(--chop-red));
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    transform: rotate(-9deg);
+    font-family: var(--font-display); font-weight:900; font-size:17px; line-height:1.25;
+    opacity:.92;
+    position:relative;
+  }
+  .stamp::before{
+    content:"";
+    position:absolute; inset:8px; border:1px solid var(--stamp-color, var(--chop-red)); border-radius:50%; opacity:.5;
+  }
+
+  .chart-box{ background:#F7F2E4; border:1px solid var(--cream-line); border-radius:12px; padding:16px; margin-bottom:18px; }
+  .two-col{ display:grid; grid-template-columns: 1.1fr 0.9fr; gap:18px; }
+  @media (max-width: 760px){ .two-col{ grid-template-columns: 1fr; } }
+
+  .rule-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; }
+  .rule-item{
+    background:#fff; border:1px solid var(--cream-line); border-left:4px solid var(--gold);
+    border-radius:8px; padding:11px 14px; font-size:13px; line-height:1.55;
+  }
+  .rule-item.warn{ border-left-color: var(--rust); }
+  .rule-item.ok{ border-left-color: var(--jade); }
+
+  .weight-bar-row{ margin-bottom:10px; }
+  .weight-bar-label{ display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px; }
+  .weight-bar-track{ height:9px; background:#E7E2D3; border-radius:6px; overflow:hidden; }
+  .weight-bar-fill{ height:100%; background: var(--chop-red); border-radius:6px; }
+
+  .scenario-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .scenario-table th, .scenario-table td{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--cream-line); }
+  .scenario-table th{ color:var(--ink-text-soft); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; }
+
+  .disclaimer{
+    font-size: 11.5px; color: var(--ink-text-soft); background: #E7E2D3; border-radius: 8px;
+    padding: 10px 13px; margin-top: 16px; line-height:1.6;
+  }
+  select#marketView{ max-width: 200px; }
+
+  footer.book-footer{
+    text-align:center; padding: 14px; font-size:11px; color:#8A98A8; background: var(--ink-navy-deep);
+  }
+</style>
+</head>
+<body>
+<div class="book">
+  <div class="cover">
+    <p class="cover-eyebrow">Personal Dividend Ledger</p>
+    <h1 class="cover-title">存股手帳</h1>
+    <p class="cover-sub">持股紀錄・目標試算・投資組合健檢</p>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="ledger"><span class="tab-flag flag-1"></span>持股紀錄</button>
+      <button class="tab-btn" data-tab="goal"><span class="tab-flag flag-2"></span>目標試算</button>
+      <button class="tab-btn" data-tab="health"><span class="tab-flag flag-3"></span>組合健檢</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ===== TAB 1: 持股紀錄 ===== -->
+    <section id="panel-ledger" class="panel active">
+      <h2 class="section-title">持股紀錄</h2>
+      <p class="section-desc">輸入股票代號後會自動查中文名稱與市價（資料來源：台灣證交所基本市況查詢）；同一檔股票的所有買賣紀錄會整合在同一個區塊裡。股利發放紀錄可按按鈕自動抓取（資料來源：FinMind），抓回來的資料會先列出來讓你確認，也可以按 ✎ 編輯、按 ✕ 刪除。</p>
+
+      <div class="stat-strip" id="summaryStrip"></div>
+
+      <div class="card">
+        <div class="card-title"><span>新增一筆買入紀錄</span></div>
+        <div class="form-grid">
+          <div>
+            <label>股票代號</label>
+            <input id="f-symbol" placeholder="例如 00878">
+            <div class="field-hint" id="f-symbol-hint">離開欄位時會自動查詢中文名稱</div>
+          </div>
+          <div><label>中文名稱（自動帶入，可手動修改）</label><input id="f-name"></div>
+          <div><label>資產類別</label>
+            <select id="f-category">
+              <option>股票</option><option>ETF</option><option>債券</option><option>現金</option><option>商品/黃金</option><option>其他</option>
+            </select>
+          </div>
+          <div><label>買入日期</label><input id="f-buyDate" type="date"></div>
+          <div><label>買入股數</label><input id="f-shares" type="number" min="0" step="1" placeholder="1000"></div>
+          <div><label>買入價格（每股）</label><input id="f-buyPrice" type="number" min="0" step="0.01" placeholder="33.23"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="addHoldingBtn">＋ 加入這筆買入紀錄</button>
+        </div>
+      </div>
+
+      <div id="stockBlocks"></div>
+
+      <div class="disclaimer">市價／名稱來自台灣證交所公開市況查詢，股利發放紀錄來自 FinMind 公開資料，兩者皆為第三方免費資料源，可能有延遲、非交易時段查不到報價、或個別標的（如興櫃、剛上市）資料不齊全的情況；金額最終仍以券商對帳單為準，重要決策前請自行核對，股利紀錄如有錯誤也請直接在畫面上編輯修正。</div>
+    </section>
+
+    <!-- ===== TAB 2: 目標試算 ===== -->
+    <section id="panel-goal" class="panel">
+      <h2 class="section-title">目標試算</h2>
+      <p class="section-desc">依目前資產與預期報酬率，估算達成目標金額還需要多久，並比較加碼後的效果。</p>
+
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-title">試算條件</div>
+            <div class="form-grid">
+              <div><label>目標金額（NT$）</label><input id="g-target" type="number" min="0" step="1000" placeholder="3000000"></div>
+              <div><label>預期年化報酬率（%）</label><input id="g-rate" type="number" step="0.1" value="6"></div>
+              <div><label>每月加碼金額（NT$，可留 0）</label><input id="g-monthly" type="number" min="0" step="500" value="0"></div>
+              <div>
+                <label><input type="checkbox" id="g-override-toggle" style="width:auto;margin-right:6px;">手動輸入目前總資產</label>
+                <input id="g-override-value" type="number" min="0" step="1000" placeholder="覆寫自動加總" disabled>
+              </div>
+            </div>
+            <div class="btn-row"><button class="btn btn-primary" id="calcGoalBtn">試算</button></div>
+          </div>
+          <div class="chart-box"><canvas id="goalChart" height="220"></canvas></div>
+        </div>
+
+        <div>
+          <div class="stat-strip" id="goalResultStrip"></div>
+          <div class="card">
+            <div class="card-title">加碼情境比較</div>
+            <table class="scenario-table" id="scenarioTable"></table>
+          </div>
+          <div class="card" id="goalAdviceCard">
+            <div class="card-title">投資建議</div>
+            <ul class="rule-list" id="goalAdviceList"></ul>
+          </div>
+        </div>
+      </div>
+      <div class="disclaimer">試算採複利估算之簡化模型，實際報酬會受市場波動、費用與稅務影響而不同，僅供規劃參考，並非投資保證。</div>
+    </section>
+
+    <!-- ===== TAB 3: 投資組合健檢 ===== -->
+    <section id="panel-health" class="panel">
+      <h2 class="section-title">投資組合健檢</h2>
+      <p class="section-desc">以資產配置理論（集中度、防禦性資產比重）檢視目前「持有中」部位是否過度集中，並提供再平衡方向。</p>
+
+      <div class="form-grid" style="max-width:320px;margin-bottom:20px;">
+        <div>
+          <label>您對目前市場階段的判斷</label>
+          <select id="marketView">
+            <option value="多頭">多頭 / 偏樂觀</option>
+            <option value="盤整" selected>盤整 / 不確定</option>
+            <option value="空頭">空頭 / 修正中</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="chart-box"><canvas id="allocChart" height="240"></canvas></div>
+          <div class="card">
+            <div class="card-title">單一部位占比</div>
+            <div id="weightBars"></div>
+          </div>
+        </div>
+        <div>
+          <div class="stamp-wrap"><div class="stamp" id="verdictStamp">—</div></div>
+          <div class="stat-strip" id="healthStatStrip"></div>
+          <div class="card">
+            <div class="card-title">分析師建議</div>
+            <ul class="rule-list" id="healthRuleList"></ul>
+          </div>
+        </div>
+      </div>
+      <div class="disclaimer">本健檢為規則式試算（集中度／資產配置邏輯），非連結即時市場數據，亦非持牌投資顧問之個人化建議。市場階段判斷由您自行輸入，實際配置請併同個人風險承受度與專業顧問意見評估。</div>
+    </section>
+
+  </div>
+  <footer class="book-footer">存股手帳 · 資料僅儲存在您的帳號內，供個人試算使用 · 市價／股利資料來源：FinMind</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var holdings = [];           // 每筆買入紀錄（同代號多筆會整合顯示）
+  var dividendSchedule = [];   // { id, symbol, date, amountPerShare, source: 'auto'|'manual' }
+  var stockMeta = {};          // symbol -> { name, category, currentPrice, priceUpdatedAt }
+  var editingSellId = null;
+  var goalSettings = { target: 0, rate: 6, monthly: 0, overrideOn: false, overrideValue: 0 };
+  var marketView = '盤整';
+  var goalChart, allocChart;
+
+  var fmtMoney = function(n){ n = Math.round(n||0); return 'NT$' + n.toLocaleString('zh-Hant-TW'); };
+  var fmtPct = function(n){ if(!isFinite(n)) return '—'; return (n>=0?'+':'') + n.toFixed(2) + '%'; };
+  var todayStr = function(){ return new Date().toISOString().slice(0,10); };
+  var uid = function(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); };
+  var normSym = function(s){ return (s||'').trim(); };
+  var escapeHtml = function(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+
+  // ---------- persistence ----------
+  // 儲存轉接層：在 Claude 內用 window.storage；部署成獨立網站後，
+  // window.storage 不存在，自動改用瀏覽器的 localStorage，資料改存在使用者自己的電腦/瀏覽器裡。
+  var storageAdapter = {
+    async get(key){
+      if(typeof window.storage !== 'undefined' && window.storage){
+        try{ return await window.storage.get(key, false); }catch(e){ return null; }
+      }
+      var raw = localStorage.getItem(key);
+      return raw ? { value: raw } : null;
+    },
+    async set(key, value){
+      if(typeof window.storage !== 'undefined' && window.storage){
+        try{ return await window.storage.set(key, value, false); }catch(e){ /* fall through */ }
+      }
+      try{ localStorage.setItem(key, value); }catch(e){ console.error('localStorage 儲存失敗', e); }
+      return true;
+    }
+  };
+
+  async function loadData(){
+    try{
+      var res = await storageAdapter.get('app-data');
+      if(res && res.value){
+        var parsed = JSON.parse(res.value);
+        holdings = parsed.holdings || [];
+        dividendSchedule = parsed.dividendSchedule || [];
+        stockMeta = parsed.stockMeta || {};
+        goalSettings = parsed.goalSettings || goalSettings;
+        marketView = parsed.marketView || '盤整';
+      }
+    }catch(e){ /* no saved data yet */ }
+    document.getElementById('marketView').value = marketView;
+    document.getElementById('g-target').value = goalSettings.target || '';
+    document.getElementById('g-rate').value = goalSettings.rate!=null ? goalSettings.rate : 6;
+    document.getElementById('g-monthly').value = goalSettings.monthly || 0;
+    document.getElementById('g-override-toggle').checked = !!goalSettings.overrideOn;
+    document.getElementById('g-override-value').value = goalSettings.overrideValue || '';
+    document.getElementById('g-override-value').disabled = !goalSettings.overrideOn;
+    renderAll();
+  }
+
+  async function saveData(){
+    try{
+      await storageAdapter.set('app-data', JSON.stringify({
+        holdings: holdings, dividendSchedule: dividendSchedule, stockMeta: stockMeta,
+        goalSettings: goalSettings, marketView: marketView
+      }));
+    }catch(e){ console.error('儲存失敗', e); }
+  }
+
+  // ---------- tabs ----------
+  document.querySelectorAll('.tab-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+      if(btn.dataset.tab === 'goal'){ renderGoal(); }
+      if(btn.dataset.tab === 'health'){ renderHealth(); }
+    });
+  });
+
+  // ---------- 資料來源 ----------
+  // 這裡先用「直接連線＋清楚記錄錯誤」的版本做診斷，還沒加代理備援。
+  // 目的是讓瀏覽器 Console 印出真實的錯誤訊息（例如 CORS 被擋、DNS 找不到、逾時等），
+  // 才能確定問題到底出在哪裡，而不是用猜的。
+  async function fetchJsonWithLogging(url, label){
+    try{
+      var res = await fetch(url);
+      console.log('[存股手帳] 查詢 '+label+' → HTTP狀態:', res.status, url);
+      if(!res.ok){
+        console.error('[存股手帳] '+label+' 回應不是 200，狀態碼:', res.status);
+        return null;
+      }
+      return await res.json();
+    }catch(e){
+      console.error('[存股手帳] '+label+' 直接連線失敗，完整錯誤如下（這通常就是 CORS 或網路被擋的關鍵訊息）:', e);
+      return null;
+    }
+  }
+
+  // 名稱＋即時市價：改用台灣證交所「基本市況報導」查詢（同一次呼叫就能拿到中文簡稱與最新成交價），
+  // 依序嘗試上市（tse_）、上櫃（otc_）前綴。這是公開的市況查詢介面，非官方保證的第三方串接 API，
+  // 若代號查無資料或連線被部署環境擋下，一律回傳 null，讓畫面退回手動輸入。
+  function guessCategoryFromSymbol(symbol){ return /^00/.test(symbol) ? 'ETF' : '股票'; }
+
+  async function lookupTwseQuote(symbol){
+    var exchanges = ['tse','otc'];
+    for(var i=0;i<exchanges.length;i++){
+      var url = 'https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch='+exchanges[i]+'_'+encodeURIComponent(symbol)+'.tw&json=1&delay=0&_='+Date.now();
+      var data = await fetchJsonWithLogging(url, 'TWSE('+exchanges[i]+')');
+      if(data && data.msgArray && data.msgArray.length>0){
+        var item = data.msgArray[0];
+        var priceRaw = item.z && item.z !== '-' ? item.z : item.y;
+        var price = parseFloat(priceRaw);
+        var name = item.n || item.nf || '';
+        if(name || (price && price>0)){
+          return { name: name || symbol, price: (price && price>0) ? price : null, category: guessCategoryFromSymbol(symbol), time: item.t || '' };
+        }
+      }
+    }
+    return null;
+  }
+
+  function nowLabel(){
+    var d = new Date();
+    return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ' 查詢';
+  }
+
+  // 股利發放紀錄：改用 FinMind 公開資料集（台灣證交所沒有簡單好用的單一股利歷史 API）。
+  // 只保留格式正確（YYYY-MM-DD、西元 2000 年後）且金額大於 0 的資料，過濾掉尚未公告確定除息日的預告資料。
+  var FINMIND_BASE = 'https://api.finmindtrade.com/api/v4/data';
+
+  async function finmindGet(params){
+    var qs = Object.keys(params).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(params[k]); }).join('&');
+    var json = await fetchJsonWithLogging(FINMIND_BASE + '?' + qs, 'FinMind('+params.dataset+')');
+    return (json && json.data) || [];
+  }
+
+  async function lookupDividends(symbol){
+    var rows = await finmindGet({ dataset:'TaiwanStockDividend', data_id: symbol, start_date:'2010-01-01' });
+    var dateRe = /^20\d{2}-\d{2}-\d{2}$/;
+    return (rows||[])
+      .map(function(r){ return { date: r.CashExDividendTradingDate, amountPerShare: parseFloat(r.CashEarningsDistribution), year: r.year }; })
+      .filter(function(x){ return x.date && dateRe.test(x.date) && x.amountPerShare>0; })
+      .sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+  }
+
+  // ---------- 股票代號 → 中文名稱／類別 自動查詢 ----------
+  var symbolInput = document.getElementById('f-symbol');
+  var nameInput = document.getElementById('f-name');
+  var categorySelect = document.getElementById('f-category');
+  var symbolHint = document.getElementById('f-symbol-hint');
+
+  symbolInput.addEventListener('blur', async function(){
+    var symbol = normSym(symbolInput.value);
+    if(!symbol) return;
+    if(stockMeta[symbol] && stockMeta[symbol].name && stockMeta[symbol].name !== symbol){
+      nameInput.value = stockMeta[symbol].name;
+      categorySelect.value = stockMeta[symbol].category || '股票';
+      return;
+    }
+    symbolHint.textContent = '查詢中…';
+    symbolHint.className = 'field-hint';
+    try{
+      var info = await lookupTwseQuote(symbol);
+      if(info && info.name){
+        nameInput.value = info.name;
+        categorySelect.value = info.category;
+        stockMeta[symbol] = Object.assign({}, stockMeta[symbol], { name: info.name, category: info.category });
+        if(info.price){ stockMeta[symbol].currentPrice = info.price; stockMeta[symbol].priceUpdatedAt = nowLabel(); }
+        symbolHint.textContent = '已自動帶入「'+info.name+'」，可手動修改';
+        symbolHint.className = 'field-hint';
+        saveData();
+      } else {
+        symbolHint.textContent = '查無此代號資料（可能是興櫃股票，或此來源暫時連不上），請手動輸入名稱';
+        symbolHint.className = 'field-hint';
+      }
+    }catch(e){
+      symbolHint.textContent = '自動查詢失敗（可能是部署環境的連線限制），請手動輸入名稱';
+      symbolHint.className = 'field-hint';
+    }
+  });
+
+  document.getElementById('addHoldingBtn').addEventListener('click', function(){
+    var symbol = normSym(document.getElementById('f-symbol').value);
+    var name = document.getElementById('f-name').value.trim() || symbol;
+    var category = document.getElementById('f-category').value;
+    var buyDate = document.getElementById('f-buyDate').value;
+    var shares = parseFloat(document.getElementById('f-shares').value);
+    var buyPrice = parseFloat(document.getElementById('f-buyPrice').value);
+
+    if(!symbol || !buyDate || !shares || !buyPrice){
+      alert('請至少填寫股票代號、買入日期、買入股數與買入價格。');
+      return;
+    }
+    holdings.push({ id: uid(), symbol:symbol, buyDate:buyDate, shares:shares, buyPrice:buyPrice, sellDate:null, sellPrice:null });
+    stockMeta[symbol] = Object.assign({ name:name, category:category, currentPrice:null, priceUpdatedAt:null }, stockMeta[symbol], { name:name, category:category });
+
+    ['f-symbol','f-name','f-buyDate','f-shares','f-buyPrice'].forEach(function(id){ document.getElementById(id).value = ''; });
+    symbolHint.textContent = '離開欄位時會自動查詢中文名稱';
+    saveData(); renderAll();
+  });
+
+  // ---------- holding metrics ----------
+  function matchedDividends(h){
+    var endDate = h.sellDate || todayStr();
+    return dividendSchedule.filter(function(d){
+      return normSym(d.symbol) === h.symbol && d.date > h.buyDate && d.date <= endDate;
+    }).sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+  }
+
+  function metricsFor(h){
+    var cost = (h.buyPrice||0) * (h.shares||0);
+    var isSold = !!(h.sellDate && h.sellPrice);
+    var meta = stockMeta[h.symbol] || {};
+    var currentPrice = (!isSold && meta.currentPrice) ? meta.currentPrice : h.buyPrice;
+    var currentValue = currentPrice * (h.shares||0);
+    var exitValue = isSold ? (h.sellPrice * h.shares) : 0;
+    var capitalGain = isSold ? (exitValue - cost) : (currentValue - cost);
+    var dividends = matchedDividends(h).reduce(function(s,d){ return s + (d.amountPerShare||0) * (h.shares||0); }, 0);
+    var totalReturn = capitalGain + dividends;
+    var totalReturnPct = cost>0 ? (totalReturn/cost*100) : 0;
+    var endDate = isSold ? new Date(h.sellDate) : new Date();
+    var startDate = h.buyDate ? new Date(h.buyDate) : endDate;
+    var years = Math.max((endDate-startDate)/ (1000*3600*24*365.25), 0);
+    var cagr = (cost>0 && years>=0.08) ? (Math.pow(Math.max((cost+totalReturn)/cost,0.0001), 1/years)-1)*100 : null;
+    return { cost:cost, isSold:isSold, currentValue: isSold?0:currentValue, exitValue:exitValue, capitalGain:capitalGain,
+      dividends:dividends, totalReturn:totalReturn, totalReturnPct:totalReturnPct, years:years, cagr:cagr };
+  }
+
+  function portfolioTotals(){
+    var totalCost=0, unrealizedGain=0, realizedGain=0, totalDividends=0, currentHeldValue=0, realizedProceeds=0;
+    holdings.forEach(function(h){
+      var m = metricsFor(h);
+      totalCost += m.cost;
+      totalDividends += m.dividends;
+      if(m.isSold){ realizedProceeds += m.exitValue; realizedGain += m.capitalGain; }
+      else { currentHeldValue += m.currentValue; unrealizedGain += m.capitalGain; }
+    });
+    var totalCapitalGain = unrealizedGain + realizedGain;
+    var totalReturn = totalCapitalGain + totalDividends;
+    var totalReturnPct = totalCost>0 ? (totalReturn/totalCost*100) : 0;
+    var totalWealth = currentHeldValue + realizedProceeds + totalDividends;
+    return { totalCost:totalCost, totalCapitalGain:totalCapitalGain, unrealizedGain:unrealizedGain, realizedGain:realizedGain,
+      totalDividends:totalDividends, totalReturn:totalReturn, totalReturnPct:totalReturnPct, currentHeldValue:currentHeldValue,
+      realizedProceeds:realizedProceeds, totalWealth:totalWealth };
+  }
+
+  function groupBySymbol(){
+    var groups = {};
+    holdings.forEach(function(h){
+      if(!groups[h.symbol]) groups[h.symbol] = [];
+      groups[h.symbol].push(h);
+    });
+    return groups;
+  }
+
+  // ---------- render ----------
+  function renderAll(){ renderSummary(); renderStockBlocks(); renderGoal(); renderHealth(); }
+
+  function renderSummary(){
+    var t = portfolioTotals();
+    var el = document.getElementById('summaryStrip');
+    el.innerHTML =
+      tile('總投入成本', fmtMoney(t.totalCost)) +
+      tile('未實現資本利得', fmtMoney(t.unrealizedGain), t.unrealizedGain>=0?'pos':'neg') +
+      tile('已實現資本利得', fmtMoney(t.realizedGain), t.realizedGain>=0?'pos':'neg') +
+      tile('股利合計', fmtMoney(t.totalDividends), 'pos') +
+      tile('含息總報酬率', fmtPct(t.totalReturnPct), t.totalReturnPct>=0?'pos':'neg');
+  }
+  function tile(label, value, cls){
+    return '<div class="stat-tile"><div class="stat-label">'+label+'</div><div class="stat-value '+(cls||'')+'">'+value+'</div></div>';
+  }
+  function hs(label,value,cls){ return '<div><div class="hs-label">'+label+'</div><div class="hs-value '+(cls||'')+'">'+value+'</div></div>'; }
+
+  function renderStockBlocks(){
+    var wrap = document.getElementById('stockBlocks');
+    var groups = groupBySymbol();
+    var symbols = Object.keys(groups);
+    if(symbols.length===0){ wrap.innerHTML = '<div class="empty-state">還沒有任何持股紀錄，先在上方新增第一筆買入吧。</div>'; return; }
+
+    symbols.sort(function(a,b){
+      var aHeld = groups[a].some(function(h){ return !metricsFor(h).isSold; });
+      var bHeld = groups[b].some(function(h){ return !metricsFor(h).isSold; });
+      if(aHeld!==bHeld) return aHeld ? -1 : 1;
+      return a.localeCompare(b);
+    });
+
+    wrap.innerHTML = symbols.map(function(symbol){
+      var lots = groups[symbol];
+      var meta = stockMeta[symbol] || { name: symbol, category:'股票' };
+      var anyHeld = lots.some(function(h){ return !metricsFor(h).isSold; });
+
+      var blockCost=0, blockUnrealized=0, blockRealized=0, blockDiv=0, sharesHeld=0;
+      lots.forEach(function(h){
+        var m = metricsFor(h);
+        blockCost += m.cost; blockDiv += m.dividends;
+        if(m.isSold){ blockRealized += m.capitalGain; } else { blockUnrealized += m.capitalGain; sharesHeld += h.shares; }
+      });
+      var blockGain = blockUnrealized + blockRealized;
+      var blockReturn = blockGain + blockDiv;
+      var blockReturnPct = blockCost>0 ? (blockReturn/blockCost*100) : 0;
+      var avgHeldCost = sharesHeld>0 ? (blockCost - lots.filter(function(h){return metricsFor(h).isSold;}).reduce(function(s,h){return s+metricsFor(h).cost;},0)) / sharesHeld : 0;
+
+      var priceUpdated = meta.priceUpdatedAt ? ('（更新於 '+meta.priceUpdatedAt+'）') : '（尚未查詢）';
+      var priceDisplay = meta.currentPrice ? fmtMoney(meta.currentPrice) : '—';
+      var perShareVsAvg = (meta.currentPrice && sharesHeld>0) ?
+        ('<span class="'+((meta.currentPrice-avgHeldCost)>=0?'pos':'neg')+'" style="font-weight:700;">'+
+          ((meta.currentPrice-avgHeldCost)>=0?'+':'')+(meta.currentPrice-avgHeldCost).toFixed(2)+' / 股</span> 相較加權平均成本 NT$'+avgHeldCost.toFixed(2)) : '';
+
+      var rows = lots.slice().sort(function(a,b){ return a.buyDate < b.buyDate ? -1 : 1; }).map(function(h){
+        var m = metricsFor(h);
+        var sellCell;
+        if(editingSellId === h.id){
+          sellCell = '<div class="mini-form" style="min-width:260px;">' +
+            '<div><input type="date" id="sellDateInput-'+h.id+'" value="'+(h.sellDate||todayStr())+'"></div>' +
+            '<div><input type="number" min="0" step="0.01" id="sellPriceInput-'+h.id+'" value="'+(h.sellPrice||'')+'" placeholder="賣出價"></div>' +
+            '<div><button class="btn btn-primary btn-sm confirmSellBtn" data-id="'+h.id+'">確認</button></div>' +
+            '<div><button class="btn btn-ghost btn-sm cancelSellBtn" data-id="'+h.id+'">取消</button></div>' +
+          '</div>';
+        } else if(m.isSold){
+          sellCell = h.sellDate + '<br><span style="color:var(--ink-text-soft);font-size:11.5px;">'+fmtMoney(h.sellPrice)+'</span>';
+        } else {
+          sellCell = '<button class="btn btn-ghost btn-sm sellBtn" data-id="'+h.id+'">登記賣出</button>';
+        }
+        var rowActions = '<button class="btn btn-danger btn-sm delHoldingBtn" data-id="'+h.id+'">刪除</button>' +
+          (m.isSold ? ' <button class="btn btn-ghost btn-sm editSellBtn" data-id="'+h.id+'" style="margin-top:4px;">編輯出場</button>' : '');
+        var perShareDiffCell;
+        if(m.isSold){
+          perShareDiffCell = '<span style="color:var(--ink-text-soft);">—</span>';
+        } else {
+          var currentPriceUsed = meta.currentPrice || h.buyPrice;
+          var diff = currentPriceUsed - h.buyPrice;
+          perShareDiffCell = meta.currentPrice ?
+            ('<span class="'+(diff>=0?'pos':'neg')+'">'+(diff>=0?'+':'')+diff.toFixed(2)+'</span>') :
+            '<span style="color:var(--ink-text-soft);">未查市價</span>';
+        }
+        return '<tr>' +
+          '<td>'+h.buyDate+'</td>' +
+          '<td>'+h.shares.toLocaleString('zh-Hant-TW')+'</td>' +
+          '<td>'+fmtMoney(h.buyPrice)+'</td>' +
+          '<td>'+perShareDiffCell+'</td>' +
+          '<td class="wrap">'+sellCell+'</td>' +
+          '<td class="'+(m.capitalGain>=0?'pos':'neg')+'">'+fmtMoney(m.capitalGain)+'<span class="realized-tag">'+(m.isSold?'已實現':'未實現')+'</span></td>' +
+          '<td class="pos">'+fmtMoney(m.dividends)+'</td>' +
+          '<td class="'+(m.totalReturnPct>=0?'pos':'neg')+'">'+fmtPct(m.totalReturnPct)+'</td>' +
+          '<td>'+rowActions+'</td>' +
+        '</tr>';
+      }).join('');
+
+      var divChips = matchedSymbolDividends(symbol).map(function(d){
+        return '<span class="div-chip'+(d.source==='auto'?' auto':'')+'">'+d.date+'・每股 NT$'+d.amountPerShare+
+          '<button class="edit editScheduleBtn" data-id="'+d.id+'" title="編輯">✎</button>'+
+          '<button class="delScheduleBtn" data-id="'+d.id+'" title="刪除">✕</button></span>';
+      }).join('');
+
+      return '' +
+      '<div class="stock-block" data-symbol="'+escapeHtml(symbol)+'">' +
+        '<div class="block-head">' +
+          '<div>' +
+            '<div class="block-title-row">' +
+              '<span class="block-symbol">'+escapeHtml(symbol)+'</span>' +
+              '<span class="block-name">'+escapeHtml(meta.name||'')+'</span>' +
+              '<span class="pill '+(anyHeld?'pill-hold':'pill-sold')+'">'+(anyHeld?'持有中':'已全數出場')+'</span>' +
+              '<span class="pill pill-sold">'+escapeHtml(meta.category||'股票')+'</span>' +
+            '</div>' +
+            '<div class="price-line">目前市價 <span class="price-value">'+priceDisplay+'</span> '+priceUpdated+
+              (perShareVsAvg ? ('　'+perShareVsAvg) : '') +
+              ' <button class="btn btn-ghost btn-sm refreshPriceBtn" data-symbol="'+escapeHtml(symbol)+'">更新市價</button>' +
+              ' <input type="number" min="0" step="0.01" class="manualPriceInput" data-symbol="'+escapeHtml(symbol)+'" placeholder="手動輸入市價">' +
+              ' <button class="btn btn-ghost btn-sm setManualPriceBtn" data-symbol="'+escapeHtml(symbol)+'">套用</button>' +
+              '<span class="fetch-status" id="price-status-'+escapeHtml(symbol)+'"></span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="block-actions">' +
+            '<button class="btn btn-ghost btn-sm fetchDivBtn" data-symbol="'+escapeHtml(symbol)+'">自動抓取股利</button>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="holding-stats">' +
+          hs('持有中股數', sharesHeld.toLocaleString('zh-Hant-TW')) +
+          hs('累計投入成本', fmtMoney(blockCost)) +
+          hs('未實現資本利得', fmtMoney(blockUnrealized), blockUnrealized>=0?'pos':'neg') +
+          hs('已實現資本利得', fmtMoney(blockRealized), blockRealized>=0?'pos':'neg') +
+          hs('股利合計', fmtMoney(blockDiv), 'pos') +
+          hs('含息報酬率', fmtPct(blockReturnPct), blockReturnPct>=0?'pos':'neg') +
+        '</div>' +
+
+        '<div class="txn-wrap"><table class="txn-table">' +
+          '<tr><th>買入日期</th><th>股數</th><th>買入價</th><th>每股損益</th><th>賣出日期/價格</th><th>資本利得</th><th>股利</th><th>含息報酬率</th><th>操作</th></tr>' +
+          rows +
+        '</table></div>' +
+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">' +
+          '<span style="font-size:12px;color:var(--ink-text-soft);font-weight:600;">股利發放紀錄（綠框＝自動抓取）</span>' +
+          '<span class="fetch-status" id="div-status-'+escapeHtml(symbol)+'"></span>' +
+        '</div>' +
+        '<div class="div-list">'+(divChips || '<span style="font-size:12px;color:var(--ink-text-soft);">尚無股利紀錄，可按「自動抓取股利」或手動新增</span>')+'</div>' +
+        '<div class="mini-form">' +
+          '<div><label>除息日期</label><input type="date" class="manDivDate" data-symbol="'+escapeHtml(symbol)+'"></div>' +
+          '<div><label>每股股利</label><input type="number" min="0" step="0.01" class="manDivAmount" data-symbol="'+escapeHtml(symbol)+'" placeholder="0.58"></div>' +
+          '<div><button class="btn btn-ghost btn-sm addManualDivBtn" data-symbol="'+escapeHtml(symbol)+'">＋ 手動新增</button></div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    bindStockBlockEvents(wrap);
+  }
+
+  function matchedSymbolDividends(symbol){
+    return dividendSchedule.filter(function(d){ return normSym(d.symbol)===symbol; })
+      .sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+  }
+
+  function bindStockBlockEvents(wrap){
+    wrap.querySelectorAll('.delHoldingBtn').forEach(function(b){
+      b.addEventListener('click', function(){
+        holdings = holdings.filter(function(h){ return h.id !== b.dataset.id; });
+        saveData(); renderAll();
+      });
+    });
+    wrap.querySelectorAll('.sellBtn, .editSellBtn').forEach(function(b){
+      b.addEventListener('click', function(){ editingSellId = b.dataset.id; renderStockBlocks(); });
+    });
+    wrap.querySelectorAll('.cancelSellBtn').forEach(function(b){
+      b.addEventListener('click', function(){ editingSellId = null; renderStockBlocks(); });
+    });
+    wrap.querySelectorAll('.confirmSellBtn').forEach(function(b){
+      b.addEventListener('click', function(){
+        var id = b.dataset.id;
+        var h = holdings.find(function(x){ return x.id===id; });
+        var dateInput = document.getElementById('sellDateInput-'+id);
+        var priceInput = document.getElementById('sellPriceInput-'+id);
+        var date = dateInput.value;
+        var price = parseFloat(priceInput.value);
+        if(!h || !date || !price || price<=0){ priceInput.focus(); return; }
+        h.sellDate = date; h.sellPrice = price;
+        editingSellId = null;
+        saveData(); renderAll();
+      });
+    });
+    wrap.querySelectorAll('.delScheduleBtn').forEach(function(b){
+      b.addEventListener('click', function(){
+        dividendSchedule = dividendSchedule.filter(function(d){ return d.id !== b.dataset.id; });
+        saveData(); renderAll();
+      });
+    });
+    wrap.querySelectorAll('.editScheduleBtn').forEach(function(b){
+      b.addEventListener('click', function(){
+        var entry = dividendSchedule.find(function(d){ return d.id===b.dataset.id; });
+        if(!entry) return;
+        var symbol = entry.symbol;
+        dividendSchedule = dividendSchedule.filter(function(d){ return d.id !== entry.id; });
+        saveData(); renderAll();
+        var newWrap = document.getElementById('stockBlocks');
+        var dateInput = newWrap.querySelector('.manDivDate[data-symbol="'+cssEscape(symbol)+'"]');
+        var amtInput = newWrap.querySelector('.manDivAmount[data-symbol="'+cssEscape(symbol)+'"]');
+        if(dateInput) dateInput.value = entry.date;
+        if(amtInput){ amtInput.value = entry.amountPerShare; amtInput.focus(); }
+      });
+    });
+    wrap.querySelectorAll('.addManualDivBtn').forEach(function(b){
+      b.addEventListener('click', function(){
+        var symbol = b.dataset.symbol;
+        var dateInput = wrap.querySelector('.manDivDate[data-symbol="'+cssEscape(symbol)+'"]');
+        var amtInput = wrap.querySelector('.manDivAmount[data-symbol="'+cssEscape(symbol)+'"]');
+        var date = dateInput.value;
+        var amount = parseFloat(amtInput.value);
+        if(!date || !amount || amount<=0){ amtInput.focus(); return; }
+        dividendSchedule.push({ id: uid(), symbol: symbol, date: date, amountPerShare: amount, source:'manual' });
+        saveData(); renderAll();
+      });
+    });
+    wrap.querySelectorAll('.refreshPriceBtn').forEach(function(b){
+      b.addEventListener('click', async function(){
+        var symbol = b.dataset.symbol;
+        var status = document.getElementById('price-status-'+cssEscapeId(symbol));
+        b.disabled = true; if(status){ status.textContent='查詢中…'; status.className='fetch-status'; }
+        try{
+          var info = await lookupTwseQuote(symbol);
+          if(info && info.price){
+            stockMeta[symbol] = Object.assign({}, stockMeta[symbol], { currentPrice: info.price, priceUpdatedAt: nowLabel() });
+            if(info.name && (!stockMeta[symbol].name || stockMeta[symbol].name===symbol)){ stockMeta[symbol].name = info.name; }
+            saveData(); renderAll();
+          } else if(status){
+            status.textContent = '查無報價（非交易時段時可能查不到成交價，或代號有誤）'; status.className='fetch-status err';
+          }
+        }catch(e){
+          if(status){ status.textContent = '連線失敗（可能是部署環境的連線限制），請手動確認市價'; status.className='fetch-status err'; }
+        }
+        b.disabled = false;
+      });
+    });
+    wrap.querySelectorAll('.setManualPriceBtn').forEach(function(b){
+      b.addEventListener('click', function(){
+        var symbol = b.dataset.symbol;
+        var input = wrap.querySelector('.manualPriceInput[data-symbol="'+cssEscape(symbol)+'"]');
+        var price = parseFloat(input.value);
+        if(!price || price<=0){ input.focus(); return; }
+        stockMeta[symbol] = Object.assign({}, stockMeta[symbol], { currentPrice: price, priceUpdatedAt: nowLabel()+'・手動輸入' });
+        saveData(); renderAll();
+      });
+    });
+    wrap.querySelectorAll('.fetchDivBtn').forEach(function(b){
+      b.addEventListener('click', async function(){
+        var symbol = b.dataset.symbol;
+        var status = document.getElementById('div-status-'+cssEscapeId(symbol));
+        b.disabled = true; if(status){ status.textContent='抓取中…'; status.className='fetch-status'; }
+        try{
+          var lots = holdings.filter(function(h){ return h.symbol===symbol; });
+          var minBuyDate = lots.reduce(function(min,h){ return (!min || h.buyDate<min) ? h.buyDate : min; }, null);
+          var list = await lookupDividends(symbol);
+          if(minBuyDate){ list = list.filter(function(item){ return item.date > minBuyDate; }); }
+          var added = 0;
+          list.forEach(function(item){
+            var exists = dividendSchedule.some(function(d){ return normSym(d.symbol)===symbol && d.date===item.date; });
+            if(!exists){
+              dividendSchedule.push({ id: uid(), symbol: symbol, date: item.date, amountPerShare: item.amountPerShare, source:'auto' });
+              added++;
+            }
+          });
+          saveData(); renderAll();
+          var newStatus = document.getElementById('div-status-'+cssEscapeId(symbol));
+          if(newStatus){ newStatus.textContent = added>0 ? ('已新增 '+added+' 筆（僅買入日之後除息的紀錄）') : '無新資料（可能已抓過、查無資料，或除息日都早於買入日）'; newStatus.className='fetch-status ok'; }
+        }catch(e){
+          if(status){ status.textContent = '自動抓取失敗（可能是部署環境的跨網域限制），請手動新增'; status.className='fetch-status err'; }
+        }
+        b.disabled = false;
+      });
+    });
+  }
+  function cssEscape(s){ return String(s).replace(/"/g,'\\"'); }
+  function cssEscapeId(s){ return String(s).replace(/[^a-zA-Z0-9_-]/g, '_'); }
+
+  // ---------- goal tab ----------
+  document.getElementById('g-override-toggle').addEventListener('change', function(e){
+    document.getElementById('g-override-value').disabled = !e.target.checked;
+  });
+  document.getElementById('calcGoalBtn').addEventListener('click', function(){
+    goalSettings = {
+      target: parseFloat(document.getElementById('g-target').value) || 0,
+      rate: parseFloat(document.getElementById('g-rate').value) || 0,
+      monthly: parseFloat(document.getElementById('g-monthly').value) || 0,
+      overrideOn: document.getElementById('g-override-toggle').checked,
+      overrideValue: parseFloat(document.getElementById('g-override-value').value) || 0
+    };
+    saveData(); renderGoal();
+  });
+
+  function monthsToGoal(pv, target, annualRatePct, monthlyContribution){
+    if(pv >= target) return 0;
+    var i = Math.pow(1+annualRatePct/100, 1/12) - 1;
+    if(monthlyContribution <= 0){
+      if(pv<=0 || annualRatePct<=0) return Infinity;
+      return Math.log(target/pv) / Math.log(1+i);
+    }
+    if(Math.abs(i) < 1e-9){
+      return (target - pv) / monthlyContribution;
+    }
+    var denom = pv + monthlyContribution/i;
+    var numer = target + monthlyContribution/i;
+    if(denom<=0) return Infinity;
+    var x = numer/denom;
+    if(x<=0) return Infinity;
+    return Math.log(x) / Math.log(1+i);
+  }
+
+  function projectionSeries(pv, annualRatePct, monthlyContribution, months){
+    var i = Math.pow(1+annualRatePct/100, 1/12) - 1;
+    var arr = [pv];
+    var v = pv;
+    for(var m=1; m<=months; m++){ v = v*(1+i) + monthlyContribution; arr.push(v); }
+    return arr;
+  }
+
+  function renderGoal(){
+    var t = portfolioTotals();
+    var pv = goalSettings.overrideOn ? (goalSettings.overrideValue||0) : t.totalWealth;
+    var target = goalSettings.target||0;
+    var rate = goalSettings.rate!=null ? goalSettings.rate : 6;
+    var monthly = goalSettings.monthly||0;
+
+    var resultStrip = document.getElementById('goalResultStrip');
+    var adviceList = document.getElementById('goalAdviceList');
+
+    if(!target || target<=0){
+      resultStrip.innerHTML = tile('目前預估總資產', fmtMoney(pv)) + tile('目標金額', '尚未設定');
+      adviceList.innerHTML = '<li class="rule-item">請先在左側輸入目標金額並按下試算。</li>';
+      renderScenarioTable(pv, target, rate, monthly);
+      drawGoalChart(pv, rate, monthly, 0, target);
+      return;
+    }
+
+    var months = monthsToGoal(pv, target, rate, monthly);
+    var already = pv >= target;
+    var timeLabel = already ? '已達成目標' : (isFinite(months) ? (Math.floor(months/12) + ' 年 ' + Math.round(months%12) + ' 個月') : '以目前條件無法達成');
+
+    resultStrip.innerHTML =
+      tile('目前預估總資產', fmtMoney(pv)) +
+      tile('目標金額', fmtMoney(target)) +
+      tile('距離目標', fmtMoney(Math.max(target-pv,0))) +
+      tile('預估達成時間', timeLabel, already?'pos':'');
+
+    var advice = [];
+    if(already){
+      advice.push(ruleItem('恭喜，依目前資產與設定，您已達成目標金額。可考慮設定下一階段目標，或逐步將部位轉向較穩健的資產以鎖住成果。','ok'));
+    } else if(!isFinite(months)){
+      advice.push(ruleItem('在目前的報酬率與加碼金額設定下，資產成長不足以到達目標，建議提高每月加碼金額，或重新檢視標的的長期報酬率假設。','warn'));
+    } else if(months/12 > 20){
+      advice.push(ruleItem('預估需要 20 年以上才能達成目標，時間偏長。可考慮：① 提高每月加碼金額 ② 在風險承受度內尋找長期報酬率較高的標的 ③ 適度增加目前表現較佳部位的持倉。','warn'));
+    } else {
+      advice.push(ruleItem('目前的資產成長路徑可在合理時間內達成目標，建議定期（例如每季）回顧一次持股與股利紀錄，確認進度是否符合預期。','ok'));
+    }
+    if(monthly<=0){
+      advice.push(ruleItem('目前未設定每月加碼金額。持續定期定額投入，能有效縮短達成目標所需的時間，詳見右方情境比較。'));
+    }
+    var distinctHeldSymbols = Object.keys(groupBySymbol()).filter(function(sym){
+      return groupBySymbol()[sym].some(function(h){ return !metricsFor(h).isSold; });
+    });
+    if(t.totalCost>0 && distinctHeldSymbols.length===1){
+      advice.push(ruleItem('目前僅持有單一標的，若要追求目標，除了增加既有持倉，也可評估分散買入其他標的以降低單一個股波動對達成目標時間的影響。'));
+    }
+    adviceList.innerHTML = advice.join('');
+
+    renderScenarioTable(pv, target, rate, monthly);
+    drawGoalChart(pv, rate, monthly, months, target);
+  }
+
+  function ruleItem(text, kind){
+    return '<li class="rule-item'+(kind?' '+kind:'')+'">'+text+'</li>';
+  }
+
+  function renderScenarioTable(pv, target, rate, monthly){
+    var scenarios = [
+      { label:'目前設定', extra: 0 },
+      { label:'+ 每月加碼 NT$3,000', extra: 3000 },
+      { label:'+ 每月加碼 NT$5,000', extra: 5000 }
+    ];
+    var rows = scenarios.map(function(s){
+      var m = monthsToGoal(pv, target||0, rate, monthly + s.extra);
+      var label = (!target) ? '—' : (pv>=target ? '已達成' : (isFinite(m) ? (Math.floor(m/12)+'年'+Math.round(m%12)+'個月') : '無法達成'));
+      return '<tr><td>'+s.label+'</td><td>NT$'+(monthly+s.extra).toLocaleString('zh-Hant-TW')+' /月</td><td>'+label+'</td></tr>';
+    }).join('');
+    document.getElementById('scenarioTable').innerHTML =
+      '<tr><th>情境</th><th>每月投入</th><th>預估達成時間</th></tr>' + rows;
+  }
+
+  function drawGoalChart(pv, rate, monthly, months, target){
+    var ctx = document.getElementById('goalChart').getContext('2d');
+    var horizon = isFinite(months) && months>0 ? Math.min(Math.ceil(months)+6, 600) : 120;
+    var series = projectionSeries(pv, rate, monthly, horizon);
+    var labels = series.map(function(_,idx){ return idx; });
+    if(goalChart) goalChart.destroy();
+    goalChart = new Chart(ctx, {
+      type:'line',
+      data:{ labels: labels, datasets:[
+        { label:'預估資產成長', data: series, borderColor:'#8C2A21', backgroundColor:'rgba(179,56,44,0.08)', fill:true, tension:.25, pointRadius:0, borderWidth:2 },
+        { label:'目標金額', data: labels.map(function(){return target||null;}), borderColor:'#3F7150', borderDash:[6,4], pointRadius:0, borderWidth:1.5 }
+      ]},
+      options:{
+        responsive:true,
+        plugins:{ legend:{ labels:{ font:{ family:"'Noto Sans TC'", size:11 } } } },
+        scales:{
+          x:{ title:{ display:true, text:'月', font:{family:"'Noto Sans TC'", size:11} }, ticks:{ maxTicksLimit:8 } },
+          y:{ title:{ display:true, text:'NT$', font:{family:"'Noto Sans TC'", size:11} } }
+        }
+      }
+    });
+  }
+
+  // ---------- health tab ----------
+  document.getElementById('marketView').addEventListener('change', function(e){
+    marketView = e.target.value; saveData(); renderHealth();
+  });
+
+  var defensiveCategories = ['債券','現金','商品/黃金'];
+
+  function renderHealth(){
+    var groups = groupBySymbol();
+    var held = Object.keys(groups).map(function(symbol){
+      var lots = groups[symbol];
+      var value = 0;
+      lots.forEach(function(h){ var m = metricsFor(h); if(!m.isSold) value += m.currentValue; });
+      var meta = stockMeta[symbol] || { name: symbol, category:'股票' };
+      return { symbol: symbol, name: meta.name || symbol, category: meta.category || '股票', value: value };
+    }).filter(function(x){ return x.value>0; });
+
+    var total = held.reduce(function(s,x){ return s+x.value; }, 0);
+    var statStrip = document.getElementById('healthStatStrip');
+    var ruleList = document.getElementById('healthRuleList');
+    var weightBars = document.getElementById('weightBars');
+    var stamp = document.getElementById('verdictStamp');
+
+    if(held.length===0 || total<=0){
+      statStrip.innerHTML = tile('持有中標的', '0 檔');
+      ruleList.innerHTML = '<li class="rule-item">尚無持有中的部位可供健檢，請先在「持股紀錄」新增持股（並確認尚未登記賣出）。</li>';
+      weightBars.innerHTML = '<div class="empty-state">無資料</div>';
+      stamp.textContent = '—';
+      stamp.style.setProperty('--stamp-color', '#8A98A8');
+      if(allocChart) allocChart.destroy();
+      return;
+    }
+
+    held.forEach(function(h){ h.weight = h.value/total; });
+    held.sort(function(a,b){ return b.weight-a.weight; });
+
+    var hhi = held.reduce(function(s,h){ return s + h.weight*h.weight; }, 0);
+    var diversificationScore = (1-hhi)*100;
+
+    var catWeights = {};
+    held.forEach(function(h){ catWeights[h.category] = (catWeights[h.category]||0) + h.weight; });
+    var defensiveWeight = defensiveCategories.reduce(function(s,c){ return s + (catWeights[c]||0); }, 0);
+
+    var countScore = Math.min(held.length,5)*20;
+    var score = Math.round(diversificationScore*0.6 + defensiveWeight*100*0.2 + countScore*0.2);
+    score = Math.max(0, Math.min(100, score));
+
+    var verdict, color;
+    if(score>=75){ verdict='穩健'; color='#3F7150'; }
+    else if(score>=50){ verdict='尚可'; color='#B8892B'; }
+    else if(score>=30){ verdict='待調整'; color='#9B3B2C'; }
+    else { verdict='高風險'; color='#B3382C'; }
+
+    stamp.innerHTML = '健檢評分<br>'+score+'<br>'+verdict;
+    stamp.style.setProperty('--stamp-color', color);
+
+    statStrip.innerHTML =
+      tile('持有中標的', held.length+' 檔') +
+      tile('最大單一部位', fmtPct(held[0].weight*100).replace('+','')) +
+      tile('防禦性資產占比', fmtPct(defensiveWeight*100).replace('+','')) +
+      tile('健檢評分', score+' / 100');
+
+    weightBars.innerHTML = held.map(function(h){
+      return '<div class="weight-bar-row">' +
+        '<div class="weight-bar-label"><span>'+escapeHtml(h.symbol)+' '+escapeHtml(h.name)+'</span><span>'+(h.weight*100).toFixed(1)+'%</span></div>' +
+        '<div class="weight-bar-track"><div class="weight-bar-fill" style="width:'+(h.weight*100).toFixed(1)+'%;"></div></div>' +
+      '</div>';
+    }).join('');
+
+    var rules = [];
+    var top = held[0];
+    if(top.weight>0.5){
+      rules.push(ruleItem('高度集中：「'+escapeHtml(top.name)+'」占投資組合 '+(top.weight*100).toFixed(1)+'%，單一標的波動可能大幅牽動整體資產，建議分批調節或分散至其他標的。','warn'));
+    } else if(top.weight>0.3){
+      rules.push(ruleItem('留意集中度：「'+escapeHtml(top.name)+'」占比 '+(top.weight*100).toFixed(1)+'%，略高於一般建議的單一部位上限（約 30%），可視情況分散。','warn'));
+    } else {
+      rules.push(ruleItem('目前最大單一部位占比 '+(top.weight*100).toFixed(1)+'%，集中度尚在合理範圍。','ok'));
+    }
+    if(held.length<3){
+      rules.push(ruleItem('目前僅持有 '+held.length+' 檔標的，檔數偏少，建議增加標的數量以分散非系統性風險（個股利空）。','warn'));
+    }
+    if(defensiveWeight<0.1){
+      rules.push(ruleItem('防禦性資產（債券／現金／商品）占比僅 '+(defensiveWeight*100).toFixed(1)+'%，建議視個人風險承受度增加至少一成的防禦性資產，緩衝市場劇烈波動。','warn'));
+    } else {
+      rules.push(ruleItem('已配置 '+(defensiveWeight*100).toFixed(1)+'% 防禦性資產，具備一定的緩衝能力。','ok'));
+    }
+    if(marketView==='空頭'){
+      rules.push(ruleItem('您判斷目前市場處於空頭／修正階段：可考慮提高現金或債券部位、避免加碼槓桿部位，並重新檢視持股基本面是否轉弱。','warn'));
+    } else if(marketView==='多頭'){
+      rules.push(ruleItem('您判斷目前市場偏多頭：追高時應更謹慎，建議設定停利或定期再平衡機制，避免部位持續膨脹推升集中度風險。'));
+    } else {
+      rules.push(ruleItem('您判斷目前市場處於盤整：可維持既定配置紀律，透過定期定額持續布局，降低擇時壓力。'));
+    }
+    ruleList.innerHTML = rules.join('');
+
+    var ctx = document.getElementById('allocChart').getContext('2d');
+    if(allocChart) allocChart.destroy();
+    allocChart = new Chart(ctx, {
+      type:'pie',
+      data:{
+        labels: held.map(function(h){ return h.symbol+' '+h.name; }),
+        datasets:[{ data: held.map(function(h){ return h.value; }),
+          backgroundColor: ['#B3382C','#3F7150','#B8892B','#2B3B4E','#9B3B2C','#6B6150','#C9BFA0','#8C2A21'] }]
+      },
+      options:{ responsive:true, plugins:{ legend:{ position:'bottom', labels:{ font:{family:"'Noto Sans TC'", size:11} } } } }
+    });
+  }
+
+  loadData();
+})();
+</script>
+</body>
+</html>
