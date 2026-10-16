@@ -439,7 +439,7 @@
     </section>
 
   </div>
-  <footer class="book-footer">存股手帳 · 資料僅儲存在您的帳號內，供個人試算使用 · 市價／股利資料來源：FinMind</footer>
+  <footer class="book-footer">存股手帳 · 資料僅儲存在這台裝置的瀏覽器中，供個人試算使用 · 市價：台灣證交所（即時，可用時）／FinMind（收盤價）· 股利：FinMind</footer>
 </div>
 
 <script>
@@ -525,22 +525,38 @@
   });
 
   // ---------- 資料來源 ----------
-  // 這裡先用「直接連線＋清楚記錄錯誤」的版本做診斷，還沒加代理備援。
-  // 目的是讓瀏覽器 Console 印出真實的錯誤訊息（例如 CORS 被擋、DNS 找不到、逾時等），
-  // 才能確定問題到底出在哪裡，而不是用猜的。
-  async function fetchJsonWithLogging(url, label){
+  // 已用瀏覽器 Console 實測確認：台灣證交所（mis.twse.com.tw）的查詢介面沒有對外開放
+  // Access-Control-Allow-Origin，所以任何部署在 GitHub Pages / Netlify 等網域的網頁直接
+  // fetch() 都會被瀏覽器擋下（伺服器其實有回應 200，但瀏覽器不讓網頁程式讀取內容）。
+  // 這裡改成「先直連，被 CORS 擋下就自動改走公開代理伺服器」。代理是第三方免費服務，
+  // 穩定性不保證（可能較慢、可能偶爾掛掉），是務實的權宜之計，不是完美解法。
+  var CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+
+  // 加上逾時：免費代理掛掉時常常是「完全不回應」，沒有逾時的話按鈕會一直卡在「查詢中…」。
+  function fetchWithTimeout(url, ms){
+    var ctrl = new AbortController();
+    var timer = setTimeout(function(){ ctrl.abort(); }, ms);
+    return fetch(url, { signal: ctrl.signal }).finally(function(){ clearTimeout(timer); });
+  }
+
+  async function fetchJsonWithLogging(url, label, opts){
+    opts = opts || {};
     try{
-      var res = await fetch(url);
-      console.log('[存股手帳] 查詢 '+label+' → HTTP狀態:', res.status, url);
-      if(!res.ok){
-        console.error('[存股手帳] '+label+' 回應不是 200，狀態碼:', res.status);
-        return null;
-      }
-      return await res.json();
+      var res = await fetchWithTimeout(url, opts.directTimeout || 8000);
+      console.log('[存股手帳] 查詢 '+label+'（直連） → HTTP狀態:', res.status, url);
+      if(res.ok) return await res.json();
     }catch(e){
-      console.error('[存股手帳] '+label+' 直接連線失敗，完整錯誤如下（這通常就是 CORS 或網路被擋的關鍵訊息）:', e);
-      return null;
+      console.warn('[存股手帳] '+label+' 直連失敗（很可能是 CORS 被擋），改走代理伺服器重試:', e);
     }
+    if(opts.noProxy) return null;
+    try{
+      var proxied = await fetchWithTimeout(CORS_PROXY + encodeURIComponent(url), opts.proxyTimeout || 5000);
+      console.log('[存股手帳] 查詢 '+label+'（代理） → HTTP狀態:', proxied.status);
+      if(proxied.ok) return await proxied.json();
+    }catch(e2){
+      console.error('[存股手帳] '+label+' 連代理伺服器都失敗了，完整錯誤如下:', e2);
+    }
+    return null;
   }
 
   // 名稱＋即時市價：改用台灣證交所「基本市況報導」查詢（同一次呼叫就能拿到中文簡稱與最新成交價），
@@ -548,22 +564,58 @@
   // 若代號查無資料或連線被部署環境擋下，一律回傳 null，讓畫面退回手動輸入。
   function guessCategoryFromSymbol(symbol){ return /^00/.test(symbol) ? 'ETF' : '股票'; }
 
-  async function lookupTwseQuote(symbol){
-    var exchanges = ['tse','otc'];
-    for(var i=0;i<exchanges.length;i++){
-      var url = 'https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch='+exchanges[i]+'_'+encodeURIComponent(symbol)+'.tw&json=1&delay=0&_='+Date.now();
-      var data = await fetchJsonWithLogging(url, 'TWSE('+exchanges[i]+')');
-      if(data && data.msgArray && data.msgArray.length>0){
-        var item = data.msgArray[0];
-        var priceRaw = item.z && item.z !== '-' ? item.z : item.y;
-        var price = parseFloat(priceRaw);
+  // 證交所即時報價：只能經由第三方 CORS 代理取得，代理不穩，所以只當作「加分項」，最多等幾秒。
+  async function lookupTwseRealtime(symbol){
+    var url = 'https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_'+encodeURIComponent(symbol)+'.tw|otc_'+encodeURIComponent(symbol)+'.tw&json=1&delay=0&_='+Date.now();
+    var data = await fetchJsonWithLogging(url, 'TWSE即時', { directTimeout: 3000, proxyTimeout: 5000 });
+    if(data && data.msgArray && data.msgArray.length>0){
+      for(var i=0;i<data.msgArray.length;i++){
+        var item = data.msgArray[i];
+        var price = parseFloat(item.z && item.z !== '-' ? item.z : item.y);
         var name = item.n || item.nf || '';
         if(name || (price && price>0)){
-          return { name: name || symbol, price: (price && price>0) ? price : null, category: guessCategoryFromSymbol(symbol), time: item.t || '' };
+          return { name: name || symbol, price: (price && price>0) ? price : null, time: item.t || '' };
         }
       }
     }
     return null;
+  }
+
+  // FinMind：可直接從瀏覽器呼叫（有開 CORS），穩定提供中文名稱、類別與「最近一個交易日收盤價」。
+  async function lookupFinmindQuote(symbol){
+    var start = new Date(Date.now() - 20*86400000).toISOString().slice(0,10);
+    var results = await Promise.all([
+      fetchJsonWithLogging(FINMIND_BASE+'?dataset=TaiwanStockInfo&data_id='+encodeURIComponent(symbol), 'FinMind(TaiwanStockInfo)', { noProxy: true }),
+      fetchJsonWithLogging(FINMIND_BASE+'?dataset=TaiwanStockPrice&data_id='+encodeURIComponent(symbol)+'&start_date='+start, 'FinMind(TaiwanStockPrice)', { noProxy: true })
+    ]);
+    var info = results[0] && results[0].data && results[0].data[0];
+    var prices = (results[1] && results[1].data) || [];
+    var last = null;
+    for(var i=prices.length-1;i>=0;i--){ if(prices[i].close>0){ last = prices[i]; break; } }
+    if(!info && !last) return null;
+    return {
+      name: (info && info.stock_name) || symbol,
+      category: info ? (info.industry_category === 'ETF' ? 'ETF' : '股票') : guessCategoryFromSymbol(symbol),
+      price: last ? last.close : null,
+      asOf: last ? last.date : ''
+    };
+  }
+
+  // 兩個來源同時查：證交所即時價有拿到就用即時價，否則用 FinMind 最近收盤價。
+  async function lookupTwseQuote(symbol){
+    var settled = await Promise.all([
+      lookupTwseRealtime(symbol).catch(function(){ return null; }),
+      lookupFinmindQuote(symbol).catch(function(){ return null; })
+    ]);
+    var rt = settled[0], fm = settled[1];
+    if(!rt && !fm) return null;
+    var useRt = rt && rt.price;
+    return {
+      name: (fm && fm.name) || (rt && rt.name) || symbol,
+      category: fm ? fm.category : guessCategoryFromSymbol(symbol),
+      price: useRt ? rt.price : (fm ? fm.price : null),
+      priceLabel: useRt ? nowLabel()+'・即時' : (fm && fm.asOf ? fm.asOf.slice(5).replace('-','/')+' 收盤價' : nowLabel())
+    };
   }
 
   function nowLabel(){
@@ -612,7 +664,7 @@
         nameInput.value = info.name;
         categorySelect.value = info.category;
         stockMeta[symbol] = Object.assign({}, stockMeta[symbol], { name: info.name, category: info.category });
-        if(info.price){ stockMeta[symbol].currentPrice = info.price; stockMeta[symbol].priceUpdatedAt = nowLabel(); }
+        if(info.price){ stockMeta[symbol].currentPrice = info.price; stockMeta[symbol].priceUpdatedAt = info.priceLabel; }
         symbolHint.textContent = '已自動帶入「'+info.name+'」，可手動修改';
         symbolHint.className = 'field-hint';
         saveData();
@@ -924,7 +976,7 @@
         try{
           var info = await lookupTwseQuote(symbol);
           if(info && info.price){
-            stockMeta[symbol] = Object.assign({}, stockMeta[symbol], { currentPrice: info.price, priceUpdatedAt: nowLabel() });
+            stockMeta[symbol] = Object.assign({}, stockMeta[symbol], { currentPrice: info.price, priceUpdatedAt: info.priceLabel });
             if(info.name && (!stockMeta[symbol].name || stockMeta[symbol].name===symbol)){ stockMeta[symbol].name = info.name; }
             saveData(); renderAll();
           } else if(status){
